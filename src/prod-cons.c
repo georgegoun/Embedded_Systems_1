@@ -24,6 +24,8 @@ typedef struct {
 typedef struct workFunction {
     void* (*work)(void*);
     void* arg;
+    struct timespec start;
+    struct timespec stop;
 } workStruct;
 
 queue* queueInit(void);
@@ -34,8 +36,6 @@ void* workFunc(void* args);
 
 int main()
 {
-    printf("problem");
-
     queue* fifo;
     pthread_t* pro;
     pthread_t* con;
@@ -71,10 +71,9 @@ void* producer(void* q)
     queue* fifo;
     int i;
 
-    // printf("ok pro");
     fifo = (queue*)q;
 
-        // workStruct->work
+    workStruct sthread;
 
     for (i = 0; i < LOOP; i++) {
         pthread_mutex_lock(fifo->mut);
@@ -82,7 +81,14 @@ void* producer(void* q)
             printf("producer: queue FULL.\n");
             pthread_cond_wait(fifo->notFull, fifo->mut);
         }
+        sthread.start = timerStart(sthread.start);
+
+        //TODO: Activate Function
+
+        //TODO: Pass workFunc struct to fifo struct
+        //fifo
         queueAdd(fifo, i);
+
         pthread_mutex_unlock(fifo->mut);
         pthread_cond_signal(fifo->notEmpty);
     }
