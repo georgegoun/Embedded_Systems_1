@@ -1,3 +1,5 @@
+#include "../include/timer.h"
+
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -5,6 +7,8 @@
 
 #define QUEUESIZE 10
 #define LOOP 100
+#define p 2
+#define c 2
 
 void* producer(void* args);
 void* consumer(void* args);
@@ -17,25 +21,46 @@ typedef struct {
     pthread_cond_t *notFull, *notEmpty;
 } queue;
 
+typedef struct workFunction {
+    void* (*work)(void*);
+    void* arg;
+} workStruct;
+
 queue* queueInit(void);
 void queueDelete(queue* q);
 void queueAdd(queue* q, int in);
 void queueDel(queue* q, int* out);
+void* workFunc(void* args);
 
 int main()
 {
+    printf("problem");
+
     queue* fifo;
-    pthread_t pro, con;
+    pthread_t* pro;
+    pthread_t* con;
+
+    pro = (pthread_t*)malloc(p * sizeof(*pro));
+    con = (pthread_t*)malloc(c * sizeof(*con));
 
     fifo = queueInit();
     if (fifo == NULL) {
         fprintf(stderr, "main: Queue Init failed.\n");
         exit(1);
     }
-    pthread_create(&pro, NULL, producer, fifo);
-    pthread_create(&con, NULL, consumer, fifo);
-    pthread_join(pro, NULL);
-    pthread_join(con, NULL);
+
+    for (int i = 0; i < p; i++) {
+        pthread_create(&pro[i], NULL, producer, fifo);
+    }
+    for (int j = 0; j < c; j++) {
+        pthread_create(&con[j], NULL, consumer, fifo);
+    }
+    for (int i = 0; i < p; i++) {
+        pthread_join(pro[i], NULL);
+    }
+    for (int j = 0; j < c; j++) {
+        pthread_join(con[j], NULL);
+    }
     queueDelete(fifo);
 
     return 0;
@@ -46,7 +71,10 @@ void* producer(void* q)
     queue* fifo;
     int i;
 
+    // printf("ok pro");
     fifo = (queue*)q;
+
+        // workStruct->work
 
     for (i = 0; i < LOOP; i++) {
         pthread_mutex_lock(fifo->mut);
@@ -57,18 +85,6 @@ void* producer(void* q)
         queueAdd(fifo, i);
         pthread_mutex_unlock(fifo->mut);
         pthread_cond_signal(fifo->notEmpty);
-        usleep(100000);
-    }
-    for (i = 0; i < LOOP; i++) {
-        pthread_mutex_lock(fifo->mut);
-        while (fifo->full) {
-            printf("producer: queue FULL.\n");
-            pthread_cond_wait(fifo->notFull, fifo->mut);
-        }
-        queueAdd(fifo, i);
-        pthread_mutex_unlock(fifo->mut);
-        pthread_cond_signal(fifo->notEmpty);
-        usleep(200000);
     }
     return (NULL);
 }
@@ -78,9 +94,23 @@ void* consumer(void* q)
     queue* fifo;
     int i, d;
 
+    // printf("ok con");
+
     fifo = (queue*)q;
 
-    for (i = 0; i < LOOP; i++) {
+    // original ex
+    //  for (i = 0; i < LOOP; i++) {
+    //      pthread_mutex_lock(fifo->mut);
+    //      while (fifo->empty) {
+    //          printf("consumer: queue EMPTY.\n");
+    //          pthread_cond_wait(fifo->notEmpty, fifo->mut);
+    //      }
+    //      queueDel(fifo, &d);
+    //      pthread_mutex_unlock(fifo->mut);
+    //      pthread_cond_signal(fifo->notFull);
+    //      printf("consumer: recieved %d.\n", d);
+    //  }
+    while (1) {
         pthread_mutex_lock(fifo->mut);
         while (fifo->empty) {
             printf("consumer: queue EMPTY.\n");
@@ -90,19 +120,6 @@ void* consumer(void* q)
         pthread_mutex_unlock(fifo->mut);
         pthread_cond_signal(fifo->notFull);
         printf("consumer: recieved %d.\n", d);
-        usleep(200000);
-    }
-    for (i = 0; i < LOOP; i++) {
-        pthread_mutex_lock(fifo->mut);
-        while (fifo->empty) {
-            printf("consumer: queue EMPTY.\n");
-            pthread_cond_wait(fifo->notEmpty, fifo->mut);
-        }
-        queueDel(fifo, &d);
-        pthread_mutex_unlock(fifo->mut);
-        pthread_cond_signal(fifo->notFull);
-        printf("consumer: recieved %d.\n", d);
-        usleep(50000);
     }
     return (NULL);
 }
@@ -175,4 +192,10 @@ void queueDel(queue* q, int* out)
     q->full = 0;
 
     return;
+}
+
+void* workFunc(void* args)
+{
+    printf("Consumer thread: executed!\n");
+    return 0;
 }
