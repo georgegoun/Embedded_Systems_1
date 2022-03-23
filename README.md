@@ -8,4 +8,4 @@ Run:
 
 ./prod-cons
 
-Compiled and executed using Macintosh System
+Compiled and executed using a 3,1 GHz Dual-Core Intel Core i5 Macintosh System
