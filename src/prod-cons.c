@@ -1,25 +1,18 @@
 #include "../include/timer.h"
 
+#include <math.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 
 #define QUEUESIZE 10
-#define LOOP 100
-#define p 2
-#define c 2
+#define LOOP 125
+#define p 16
+#define c 16
 
 void* producer(void* args);
 void* consumer(void* args);
-
-typedef struct {
-    int buf[QUEUESIZE];
-    long head, tail;
-    int full, empty;
-    pthread_mutex_t* mut;
-    pthread_cond_t *notFull, *notEmpty;
-} queue;
 
 typedef struct workFunction {
     void* (*work)(void*);
@@ -27,6 +20,15 @@ typedef struct workFunction {
     struct timespec start;
     struct timespec stop;
 } workStruct;
+
+typedef struct {
+    int buf[QUEUESIZE];
+    long head, tail;
+    int full, empty;
+    pthread_mutex_t* mut;
+    pthread_cond_t *notFull, *notEmpty;
+    workStruct nested_Struct;
+} queue;
 
 queue* queueInit(void);
 void queueDelete(queue* q);
@@ -73,20 +75,16 @@ void* producer(void* q)
 
     fifo = (queue*)q;
 
-    workStruct sthread;
-
     for (i = 0; i < LOOP; i++) {
         pthread_mutex_lock(fifo->mut);
         while (fifo->full) {
-            printf("producer: queue FULL.\n");
+            // commented prints
+            //printf("producer: queue FULL.\n");
             pthread_cond_wait(fifo->notFull, fifo->mut);
         }
-        sthread.start = timerStart(sthread.start);
 
-        //TODO: Activate Function
+        fifo->nested_Struct.start = timerStart(fifo->nested_Struct.start);
 
-        //TODO: Pass workFunc struct to fifo struct
-        //fifo
         queueAdd(fifo, i);
 
         pthread_mutex_unlock(fifo->mut);
@@ -98,34 +96,28 @@ void* producer(void* q)
 void* consumer(void* q)
 {
     queue* fifo;
-    int i, d;
-
-    // printf("ok con");
+    int d;
+    int counter = 0;
 
     fifo = (queue*)q;
 
-    // original ex
-    //  for (i = 0; i < LOOP; i++) {
-    //      pthread_mutex_lock(fifo->mut);
-    //      while (fifo->empty) {
-    //          printf("consumer: queue EMPTY.\n");
-    //          pthread_cond_wait(fifo->notEmpty, fifo->mut);
-    //      }
-    //      queueDel(fifo, &d);
-    //      pthread_mutex_unlock(fifo->mut);
-    //      pthread_cond_signal(fifo->notFull);
-    //      printf("consumer: recieved %d.\n", d);
-    //  }
     while (1) {
+        counter++;
         pthread_mutex_lock(fifo->mut);
         while (fifo->empty) {
-            printf("consumer: queue EMPTY.\n");
+            // commented prints
+            //printf("consumer: queue EMPTY.\n");
             pthread_cond_wait(fifo->notEmpty, fifo->mut);
         }
         queueDel(fifo, &d);
+        fifo->nested_Struct.stop = timerStart(fifo->nested_Struct.stop);
+        fifo->nested_Struct.work = workFunc(NULL);
+        double time_dif = timeDif(fifo->nested_Struct.start, fifo->nested_Struct.stop);
+        printf("%lf\n", time_dif);
         pthread_mutex_unlock(fifo->mut);
         pthread_cond_signal(fifo->notFull);
-        printf("consumer: recieved %d.\n", d);
+        // commented prints
+        //printf("consumer: recieved %d.\n", d);
     }
     return (NULL);
 }
@@ -202,6 +194,11 @@ void queueDel(queue* q, int* out)
 
 void* workFunc(void* args)
 {
-    printf("Consumer thread: executed!\n");
+    double res = 0.0;
+    double j = 0.1;
+    for (int i = 0; i < 10; i++) {
+        res += sin(j);
+        j += 0.05;
+    }
     return 0;
 }
