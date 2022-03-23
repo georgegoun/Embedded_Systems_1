@@ -2,7 +2,7 @@
  
 Compile:
 
-gcc -Wall -g prod-cons.c ../include/timer.c -o prod-cons
+gcc -Wall -g prod-cons.c ../include/timer.c -lpthread -o prod-cons
 
 Run:
 
